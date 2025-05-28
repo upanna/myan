@@ -188,11 +188,12 @@
           <p><strong>${p.name || "Anonymous"}</strong></p>
           <p>${short} ${showMore}</p>
           <div class="actions">
-            <span>Like</span>
-            <span>Comment</span>
-            <span>Send</span>
-            <span>Share</span>
-          </div>
+            <button onclick="likePost('${p.id}')">Like</button>
+            <button onclick="commentPrompt('${p.id}')">Comment</button>
+            <button onclick="sendPost('${p.id}')">Send</button>
+            <button onclick="sharePost('${p.id}')">Share</button>
+            <div id="comments-${p.id}" class="comments"></div>
+          </div>`;
         `;
         postsDiv.appendChild(div);
       });
@@ -206,8 +207,76 @@
         liveBox.innerHTML += `<iframe src='${live.streamURL}' allowfullscreen></iframe><p><strong>${live.name}</strong> by ${live.owner}</p>`;
       });
     });
-</script>
+function likePost(postId) {
+  const postRef = db.collection('posts').doc(postId);
+  postRef.update({ likes: firebase.firestore.FieldValue.increment(1) });
+}
 
+function commentPrompt(postId) {
+  const comment = prompt("Write a comment:");
+  if (!comment) return;
+  const user = auth.currentUser;
+  if (!user) return alert("Login required to comment.");
+  const commentData = {
+    user: user.displayName || user.email,
+    text: comment,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  db.collection("posts").doc(postId).collection("comments").add(commentData);
+}
+
+db.collection("posts").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+  const postsDiv = document.getElementById("posts");
+  postsDiv.innerHTML = "";
+  snapshot.forEach(doc => {
+    const p = doc.data();
+    p.id = doc.id;
+    const div = document.createElement("div");
+    div.className = "post";
+    const short = p.content.length > 100 ? p.content.slice(0, 100) + "..." : p.content;
+    const showMore = p.content.length > 100 ? `<span class='see-more' onclick='alert("${p.content}")'>See more</span>` : "";
+    div.innerHTML = `
+      <h3>${p.title || "Untitled"}</h3>
+      <p><strong>${p.name || "Anonymous"}</strong></p>
+      <p>${short} ${showMore}</p>
+      <div class="actions">
+        <button onclick="likePost('${p.id}')">Like</button>
+        <button onclick="commentPrompt('${p.id}')">Comment</button>
+        <button onclick="sendPost('${p.id}')">Send</button>
+        <button onclick="sharePost('${p.id}')">Share</button>
+        <div id="comments-${p.id}" class="comments"></div>
+      </div>`;
+    postsDiv.appendChild(div);
+
+    db.collection("posts").doc(p.id).collection("comments").orderBy("createdAt").onSnapshot(commentSnap => {
+      const commentBox = document.getElementById("comments-" + p.id);
+      commentBox.innerHTML = "";
+      commentSnap.forEach(c => {
+        const cm = c.data();
+        const p = document.createElement("p");
+        p.innerHTML = `<strong>${cm.user}:</strong> ${cm.text}`;
+        commentBox.appendChild(p);
+      });
+    });
+  });
+});
+
+function sendPost(postId) {
+  const url = location.href + "#post-" + postId;
+  prompt("Copy this post link:", url);
+}
+
+function sharePost(postId) {
+  const url = location.href + "#post-" + postId;
+  const shareText = encodeURIComponent("Check out this post: " + url);
+  const fb = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+  const tg = `https://t.me/share/url?url=${url}`;
+  const vb = `viber://forward?text=${shareText}`;
+  window.open(fb, '_blank');
+  window.open(tg, '_blank');
+  window.open(vb, '_blank');
+}
+</script>
 
 </body>
 </html>
