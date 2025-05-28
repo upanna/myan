@@ -2,39 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PageBook Full</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PageBook</title>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; background: #f0f2f5; }
-    header {
-      background: #4267B2; color: white; padding: 10px 20px;
-      display: flex; justify-content: space-between; align-items: center;
+    body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f2f5; }
+    header { background: #4267B2; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { margin: 0; font-size: 1.5em; }
+    .mobile-menu-btn { display: none; background: none; border: none; font-size: 24px; color: white; cursor: pointer; }
+    .mobile-nav { display: none; flex-direction: column; background: #fff; padding: 10px; }
+    .mobile-nav.show { display: flex; }
+    .mobile-nav a { padding: 5px 10px; color: #4267B2; text-decoration: none; border-bottom: 1px solid #ccc; }
+    #main { display: flex; gap: 20px; padding: 20px; flex-wrap: wrap; }
+    .left, .center, .right { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+    .left, .right { width: 250px; }
+    .center { flex: 1; min-width: 300px; }
+    .post { margin-bottom: 15px; }
+    .post img { max-width: 100%; border-radius: 10px; }
+    .post-form input, .post-form textarea { width: 100%; margin: 5px 0; padding: 8px; box-sizing: border-box; }
+    .post-form button { padding: 10px; background: #4267B2; color: white; border: none; cursor: pointer; width: 100%; }
+    @media screen and (max-width: 768px) {
+      .left, .right { display: none !important; }
+      .mobile-menu-btn { display: inline; }
     }
-    header span { font-size: 1.5em; font-weight: bold; }
-    #search { max-width: 300px; margin-right: 20px; padding: 5px; border-radius: 5px; border: none; }
-    #main { display: flex; flex-direction: row; }
-    .left, .right { width: 25%; padding: 10px; }
-    .center { width: 50%; padding: 10px; background: white; min-height: 300px; }
-    @media(max-width: 768px) {
-      #main { flex-direction: column; }
-      .left, .center, .right { width: 100%; }
-    }
-    textarea, input { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
-    .post { border-top: 1px solid #ccc; padding: 10px 0; }
-    .friend { text-align: center; margin-bottom: 10px; }
-    .friend img { width: 40px; height: 40px; border-radius: 50%; }
-    #liveStreams iframe { width: 100%; height: 200px; border: none; }
-    #post-form, #profileEdit, #profileForm, #nav-post, #nav-live, #nav-photo, #nav-video, #nav-message { display: none; }
   </style>
 </head>
 <body>
   <header>
-    <span>Pagebook</span>
-    <input type="text" id="search" placeholder="Search by title or author..." oninput="searchPosts()">
+    <h1>PageBook</h1>
+    <div>
+      <button id="logoutBtn" onclick="logout()" style="display:none">Logout</button>
+      <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+    </div>
   </header>
+
+  <div id="mobileNav" class="mobile-nav">
+    <a href="#" onclick="showSection('login')">Login</a>
+    <a href="#" onclick="showSection('lives')">Lives</a>
+    <a href="#" onclick="showSection('photos')">Photos</a>
+    <a href="#" onclick="showSection('videos')">Videos</a>
+    <a href="#" onclick="showSection('messages')">Messages</a>
+    <a href="#" onclick="showSection('newpost')">New Post</a>
+  </div>
 
   <div id="main">
     <div class="left">
@@ -43,7 +54,7 @@
         <input type="email" id="email" placeholder="Email">
         <input type="password" id="password" placeholder="Password">
         <button onclick="login()">Login</button>
-        <p>Don't have an account? <span style="color:blue; cursor:pointer;" onclick="showSignup()">Sign Up</span></p>
+        <p>Don't have an account? <span class="link" onclick="showSignup()">Sign Up</span></p>
         <div id="signup" style="display:none">
           <input type="text" id="displayName" placeholder="Display Name">
           <input type="email" id="signupEmail" placeholder="Email">
@@ -52,47 +63,18 @@
         </div>
       </div>
     </div>
+
     <div class="center">
       <div id="posts">Loading posts...</div>
     </div>
+
     <div class="right">
       <h3>Live Player</h3>
       <div id="liveStreams">Loading live streams...</div>
     </div>
   </div>
 
-  <!-- hidden menus for logged-in users -->
-  <nav style="text-align:center; margin: 10px;">
-    <a href="#" id="nav-post">New Post</a>
-    <a href="#" id="nav-live">Live</a>
-    <a href="#" id="nav-photo">Photo</a>
-    <a href="#" id="nav-video">Video</a>
-    <a href="#" id="nav-message">Message</a>
-  </nav>
-
-  <div class="container">
-    <div id="post-form">
-      <input type="text" id="post-title" placeholder="Post Title">
-      <input type="text" id="post-name" placeholder="Your Name">
-      <textarea id="post-content" placeholder="Write something..."></textarea>
-      <input type="url" id="post-image" placeholder="Image URL (optional)">
-      <button onclick="submitPost()">Post</button>
-    </div>
-
-    <h3 style="display:none" id="profileEdit">Edit Profile</h3>
-    <div id="profileForm" style="display:none">
-      <input type="url" id="coverImage" placeholder="Cover Image URL">
-      <input type="url" id="profileImage" placeholder="Profile Image URL">
-      <button onclick="saveProfile()">Save Profile</button>
-
-      <h3>Go Live</h3>
-      <input type="text" id="liveName" placeholder="Live Stream Name">
-      <button onclick="generateStream()">Generate Stream URL & Key</button>
-      <div id="streamInfo"></div>
-    </div>
-  </div>
-
- <script>
+  <script>
     const firebaseConfig = {
       apiKey: "AIzaSyBevLNp5ZnrnBol3Kp0FCR_uyS1eqcWQCY",
       authDomain: "weminthu-2b12a.firebaseapp.com",
@@ -107,176 +89,32 @@
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    auth.onAuthStateChanged(user => {
-  const show = user ? "inline" : "none";
-  document.getElementById("nav-post").style.display = show;
-  document.getElementById("nav-live").style.display = show;
-  document.getElementById("nav-photo").style.display = show;
-  document.getElementById("nav-video").style.display = show;
-  document.getElementById("nav-message").style.display = show;
-  document.getElementById("post-form").style.display = user ? "block" : "none";
-  document.getElementById("profileEdit").style.display = user ? "block" : "none";
-  document.getElementById("profileForm").style.display = user ? "block" : "none";
-
-  document.getElementById("auth").style.display = user ? "none" : "block";
-
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (user) {
-    if (!logoutBtn) {
-      const btn = document.createElement("button");
-      btn.innerText = "Logout";
-      btn.id = "logoutBtn";
-      btn.onclick = () => auth.signOut();
-      document.querySelector(".left").appendChild(btn);
+    function toggleMobileMenu() {
+      document.getElementById('mobileNav').classList.toggle('show');
     }
-  } else {
-    if (logoutBtn) logoutBtn.remove();
-  }
-});
 
     function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  auth.signInWithEmailAndPassword(email, password)
-    .then(() => {
-      alert("Logged in successfully");
-    })
-    .catch(error => {
-      alert("Login failed: " + error.message);
-    });
-}
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.signInWithEmailAndPassword(email, password).catch(err => alert(err.message));
+    }
+
+    function logout() {
+      auth.signOut();
+    }
 
     function showSignup() {
       document.getElementById("signup").style.display = "block";
     }
 
-    function register() {
-      const email = document.getElementById("signupEmail").value;
-      const password = document.getElementById("signupPassword").value;
-      const name = document.getElementById("displayName").value;
-      auth.createUserWithEmailAndPassword(email, password).then(userCred => {
-        return userCred.user.updateProfile({ displayName: name });
-      });
-    }
-
-    function submitPost() {
-      const title = document.getElementById("post-title").value;
-      const name = document.getElementById("post-name").value;
-      const content = document.getElementById("post-content").value;
-      const image = document.getElementById("post-image").value;
-      const user = auth.currentUser;
-      if (!user) return alert("Login required");
-      db.collection("posts").add({
-        title, name, content, image,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        uid: user.uid,
-        likes: 0, comments: []
-      });
-    }
-
-    db.collection("posts").orderBy("createdAt", "desc").onSnapshot(snapshot => {
-      const postsDiv = document.getElementById("posts");
-      postsDiv.innerHTML = "";
-      snapshot.forEach(doc => {
-        const p = doc.data();
-        const div = document.createElement("div");
-        div.className = "post";
-        const short = p.content.length > 100 ? p.content.slice(0, 100) + "..." : p.content;
-        const showMore = p.content.length > 100 ? `<span class='see-more' onclick='alert("${p.content}")'>See more</span>` : "";
-        div.innerHTML = `
-          <h3>${p.title || "Untitled"}</h3>
-          <p><strong>${p.name || "Anonymous"}</strong></p>
-          <p>${short} ${showMore}</p>
-          <div class="actions">
-            <button onclick="likePost('${p.id}')">Like</button>
-            <button onclick="commentPrompt('${p.id}')">Comment</button>
-            <button onclick="sendPost('${p.id}')">Send</button>
-            <button onclick="sharePost('${p.id}')">Share</button>
-            <div id="comments-${p.id}" class="comments"></div>
-          </div>`;
-        `;
-        postsDiv.appendChild(div);
-      });
+    auth.onAuthStateChanged(user => {
+      document.getElementById("auth").style.display = user ? "none" : "block";
+      document.getElementById("logoutBtn").style.display = user ? "inline-block" : "none";
+      loadPosts();
     });
 
-    db.collection("live").where("active", "==", true).onSnapshot(snapshot => {
-      const liveBox = document.getElementById("liveStreams");
-      liveBox.innerHTML = "";
-      snapshot.forEach(doc => {
-        const live = doc.data();
-        liveBox.innerHTML += `<iframe src='${live.streamURL}' allowfullscreen></iframe><p><strong>${live.name}</strong> by ${live.owner}</p>`;
-      });
-    });
-function likePost(postId) {
-  const postRef = db.collection('posts').doc(postId);
-  postRef.update({ likes: firebase.firestore.FieldValue.increment(1) });
-}
-
-function commentPrompt(postId) {
-  const comment = prompt("Write a comment:");
-  if (!comment) return;
-  const user = auth.currentUser;
-  if (!user) return alert("Login required to comment.");
-  const commentData = {
-    user: user.displayName || user.email,
-    text: comment,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-  };
-  db.collection("posts").doc(postId).collection("comments").add(commentData);
-}
-
-db.collection("posts").orderBy("createdAt", "desc").onSnapshot(snapshot => {
-  const postsDiv = document.getElementById("posts");
-  postsDiv.innerHTML = "";
-  snapshot.forEach(doc => {
-    const p = doc.data();
-    p.id = doc.id;
-    const div = document.createElement("div");
-    div.className = "post";
-    const short = p.content.length > 100 ? p.content.slice(0, 100) + "..." : p.content;
-    const showMore = p.content.length > 100 ? `<span class='see-more' onclick='alert("${p.content}")'>See more</span>` : "";
-    div.innerHTML = `
-      <h3>${p.title || "Untitled"}</h3>
-      <p><strong>${p.name || "Anonymous"}</strong></p>
-      <p>${short} ${showMore}</p>
-      <div class="actions">
-        <button onclick="likePost('${p.id}')">Like</button>
-        <button onclick="commentPrompt('${p.id}')">Comment</button>
-        <button onclick="sendPost('${p.id}')">Send</button>
-        <button onclick="sharePost('${p.id}')">Share</button>
-        <div id="comments-${p.id}" class="comments"></div>
-      </div>`;
-    postsDiv.appendChild(div);
-
-    db.collection("posts").doc(p.id).collection("comments").orderBy("createdAt").onSnapshot(commentSnap => {
-      const commentBox = document.getElementById("comments-" + p.id);
-      commentBox.innerHTML = "";
-      commentSnap.forEach(c => {
-        const cm = c.data();
-        const p = document.createElement("p");
-        p.innerHTML = `<strong>${cm.user}:</strong> ${cm.text}`;
-        commentBox.appendChild(p);
-      });
-    });
-  });
-});
-
-function sendPost(postId) {
-  const url = location.href + "#post-" + postId;
-  prompt("Copy this post link:", url);
-}
-
-function sharePost(postId) {
-  const url = location.href + "#post-" + postId;
-  const shareText = encodeURIComponent("Check out this post: " + url);
-  const fb = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
-  const tg = `https://t.me/share/url?url=${url}`;
-  const vb = `viber://forward?text=${shareText}`;
-  window.open(fb, '_blank');
-  window.open(tg, '_blank');
-  window.open(vb, '_blank');
-}
-</script>
-
+    window.onload = () => loadPosts();
+  </script>
+  <script src="script.js"></script>
 </body>
 </html>
