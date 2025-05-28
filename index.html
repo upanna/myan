@@ -108,23 +108,43 @@
     const db = firebase.firestore();
 
     auth.onAuthStateChanged(user => {
-      const show = user ? "inline" : "none";
-      document.getElementById("nav-post").style.display = show;
-      document.getElementById("nav-live").style.display = show;
-      document.getElementById("nav-photo").style.display = show;
-      document.getElementById("nav-video").style.display = show;
-      document.getElementById("nav-message").style.display = show;
-      document.getElementById("post-form").style.display = user ? "block" : "none";
-      document.getElementById("profileEdit").style.display = user ? "block" : "none";
-      document.getElementById("profileForm").style.display = user ? "block" : "none";
-    });
+  const show = user ? "inline" : "none";
+  document.getElementById("nav-post").style.display = show;
+  document.getElementById("nav-live").style.display = show;
+  document.getElementById("nav-photo").style.display = show;
+  document.getElementById("nav-video").style.display = show;
+  document.getElementById("nav-message").style.display = show;
+  document.getElementById("post-form").style.display = user ? "block" : "none";
+  document.getElementById("profileEdit").style.display = user ? "block" : "none";
+  document.getElementById("profileForm").style.display = user ? "block" : "none";
+
+  document.getElementById("auth").style.display = user ? "none" : "block";
+
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (user) {
+    if (!logoutBtn) {
+      const btn = document.createElement("button");
+      btn.innerText = "Logout";
+      btn.id = "logoutBtn";
+      btn.onclick = () => auth.signOut();
+      document.querySelector(".left").appendChild(btn);
+    }
+  } else {
+    if (logoutBtn) logoutBtn.remove();
+  }
+});
 
     function login() {
-      auth.signInWithEmailAndPassword(
-        document.getElementById("email").value,
-        document.getElementById("password").value
-      ).catch(alert);
-    }
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => {
+      alert("Logged in successfully");
+    })
+    .catch(error => {
+      alert("Login failed: " + error.message);
+    });
+}
 
     function showSignup() {
       document.getElementById("signup").style.display = "block";
