@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PageBook Full</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f5f5f5; }
+    header { position: sticky; top: 0; background: #fff; padding: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; justify-content: space-around; }
+    header a { text-decoration: none; color: #007bff; font-weight: bold; }
+    .container { max-width: 600px; margin: 0 auto; padding: 10px; background: #fff; }
+    textarea, input { width: 100%; padding: 10px; margin: 5px 0; box-sizing: border-box; }
+    .post { border-top: 1px solid #ccc; padding: 10px 0; }
+    .comment { font-size: 0.9em; color: #555; }
+    .actions span { margin-right: 15px; color: #007bff; cursor: pointer; }
+    .see-more { color: #007bff; cursor: pointer; font-size: 0.9em; }
+    @media(max-width: 600px) {
+      textarea { height: 100px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="#">New Post</a>
+    <a href="#">Live</a>
+    <a href="#">Photo</a>
+    <a href="#">Video</a>
+    <a href="#">Message</a>
+  </header>
+
+  <div class="container">
+    <div id="auth">
+      <input type="email" id="email" placeholder="Email">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <p>Don't have an account? <span style="color:blue; cursor:pointer;" onclick="showSignup()">Sign Up</span></p>
+      <div id="signup" style="display:none">
+        <input type="text" id="displayName" placeholder="Display Name">
+        <input type="email" id="signupEmail" placeholder="Email">
+        <input type="password" id="signupPassword" placeholder="Password">
+        <button onclick="register()">Register</button>
+      </div>
+    </div>
+
+    <div id="post-form" style="display:none;">
+      <input type="text" id="post-title" placeholder="Post Title">
+      <input type="text" id="post-name" placeholder="Your Name">
+      <textarea id="post-content" placeholder="Write something..."></textarea>
+      <input type="url" id="post-image" placeholder="Image URL (optional)">
+      <button onclick="submitPost()">Post</button>
+    </div>
+
+    <input type="text" id="search" placeholder="Search by title or author..." oninput="searchPosts()">
+    <div id="posts"></div>
+  </div>
+
+  <div class="container">
+    <h3>Edit Profile</h3>
+    <input type="url" id="coverImage" placeholder="Cover Image URL">
+    <input type="url" id="profileImage" placeholder="Profile Image URL">
+    <button onclick="saveProfile()">Save Profile</button>
+
+    <h3>Go Live</h3>
+    <input type="text" id="liveName" placeholder="Live Stream Name">
+    <button onclick="generateStream()">Generate Stream URL & Key</button>
+    <div id="streamInfo"></div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBevLNp5ZnrnBol3Kp0FCR_uyS1eqcWQCY",
+      authDomain: "weminthu-2b12a.firebaseapp.com",
+      databaseURL: "https://weminthu-2b12a-default-rtdb.firebaseio.com",
+      projectId: "weminthu-2b12a",
+      storageBucket: "weminthu-2b12a.firebasestorage.app",
+      messagingSenderId: "181634107230",
+      appId: "1:181634107230:web:9fb4cfb725b1b5cd1bf1cf",
+      measurementId: "G-VFYC7DEVM1"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const postsDiv = document.getElementById("posts");
+
+    auth.onAuthStateChanged(user => {
+      document.getElementById("post-form").style.display = user ? "block" : "none";
+    });
+
+    function login() {
+      auth.signInWithEmailAndPassword(
+        document.getElementById("email").value,
+        document.getElementById("password").value
+      ).catch(alert);
+    }
+
+    function showSignup() {
+      document.getElementById("signup").style.display = "block";
+    }
+
+    function register() {
+      const email = document.getElementById("signupEmail").value;
+      const password = document.getElementById("signupPassword").value;
+      const name = document.getElementById("displayName").value;
+      auth.createUserWithEmailAndPassword(email, password).then(userCred => {
+        return userCred.user.updateProfile({ displayName: name });
+      });
+    }
+
+    function submitPost() {
+      const title = document.getElementById("post-title").value;
+      const name = document.getElementById("post-name").value;
+      const content = document.getElementById("post-content").value;
+      const image = document.getElementById("post-image").value;
+      const user = auth.currentUser;
+      if (!user) return alert("Login required");
+      db.collection("posts").add({
+        title, name, content, image,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        uid: user.uid,
+        likes: 0, comments: []
+      });
+    }
+
+    db.collection("posts").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+      const data = [];
+      snapshot.forEach(doc => data.push(doc.data()));
+      displayPosts(data);
+    });
+
+    function displayPosts(list) {
+      postsDiv.innerHTML = "";
+      list.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "post";
+        const short = p.content.length > 100 ? p.content.slice(0, 100) + "..." : p.content;
+        const showMore = p.content.length > 100 ? `<span class='see-more' onclick='alert("${p.content}")'>See more</span>` : "";
+        div.innerHTML = `
+          <h3>${p.title}</h3>
+          <p><strong>${p.name || ""}</strong></p>
+          <p>${short} ${showMore}</p>
+          <div class="actions">
+            <span>Like</span>
+            <span>Comment</span>
+            <span>Send</span>
+            <span>Share</span>
+          </div>
+        `;
+        postsDiv.appendChild(div);
+      });
+    }
+
+    function searchPosts() {
+      const term = document.getElementById("search").value.toLowerCase();
+      db.collection("posts").orderBy("createdAt", "desc").get().then(snapshot => {
+        const filtered = [];
+        snapshot.forEach(doc => {
+          const p = doc.data();
+          if ((p.title && p.title.toLowerCase().includes(term)) || (p.name && p.name.toLowerCase().includes(term))) {
+            filtered.push(p);
+          }
+        });
+        displayPosts(filtered);
+      });
+    }
+
+    function saveProfile() {
+      const cover = document.getElementById("coverImage").value;
+      const profile = document.getElementById("profileImage").value;
+      const user = auth.currentUser;
+      if (!user) return alert("Login required");
+      db.collection("profiles").doc(user.uid).set({
+        coverImage: cover,
+        profileImage: profile
+      });
+    }
+
+    function generateStream() {
+      const liveName = document.getElementById("liveName").value;
+      const user = auth.currentUser;
+      if (!user || !liveName) return alert("Login & live name required");
+      const streamURL = "rtmp://live.server.com/stream/" + user.uid;
+      const rtmpKey = Math.random().toString(36).substring(2, 15);
+      db.collection("live").doc(user.uid).set({
+        name: liveName,
+        streamURL: streamURL,
+        rtmpKey: rtmpKey,
+        owner: user.displayName || user.email,
+        active: true
+      });
+      document.getElementById("streamInfo").innerHTML =
+        `<p><strong>Stream URL:</strong> ${streamURL}</p><p><strong>RTMP Key:</strong> ${rtmpKey}</p>`;
+    }
+  </script>
+</body>
+</html>
