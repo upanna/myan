@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PageBook</title>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -42,12 +42,57 @@
   </nav>
 
   <!-- Sections -->
-  <div id="login" class="section">Login Section</div>
-  <div id="posts" class="section">Posts Section</div>
-  <div id="lives" class="section">Lives Section</div>
-  <div id="photos" class="section">Photos Section</div>
-  <div id="videos" class="section">Videos Section</div>
-  <div id="messages" class="section">Messages Section</div>
+  <div id="login" class="section">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <hr>
+    <h2>Sign Up</h2>
+    <input type="text" id="name" placeholder="Name">
+    <input type="email" id="signupEmail" placeholder="Email">
+    <input type="password" id="signupPassword" placeholder="Password">
+    <button onclick="signUp()">Sign Up</button>
+  </div>
+
+  <div id="posts" class="section">
+    <h2>Posts</h2>
+    <div id="newPost" style="display:none;">
+      <input type="text" id="postTitle" placeholder="Title">
+      <textarea id="postContent" placeholder="Say something..."></textarea>
+      <input type="text" id="postImageUrl" placeholder="Image URL">
+      <input type="text" id="postVideoUrl" placeholder="Video URL">
+      <button onclick="submitPost()">Post</button>
+    </div>
+    <div id="postList">Loading posts...</div>
+  </div>
+
+  <div id="lives" class="section">
+    <h2>Live Streams</h2>
+    <div id="liveUpload" style="display:none;">
+      <input type="text" id="liveName" placeholder="Stream Name">
+      <button onclick="generateStream()">Generate</button>
+      <div id="streamInfo"></div>
+    </div>
+    <div id="liveList">Loading lives...</div>
+  </div>
+
+  <div id="photos" class="section">
+    <h2>Photos</h2>
+    <div id="photoList">Loading photos...</div>
+  </div>
+
+  <div id="videos" class="section">
+    <h2>Videos</h2>
+    <div id="videoList">Loading videos...</div>
+  </div>
+
+  <div id="messages" class="section">
+    <h2>Messages</h2>
+    <div id="messageList" style="max-height:300px; overflow-y:auto; border:1px solid #ccc; padding:10px;"></div>
+    <input type="text" id="messageInput" placeholder="Type a message">
+    <button onclick="sendMessage()">Send</button>
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -65,6 +110,142 @@
     function showSection(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active-section'));
       document.getElementById(id).classList.add('active-section');
+    }
+
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.signInWithEmailAndPassword(email, password).then(() => alert("Logged in")).catch(e => alert(e.message));
+    }
+
+    function signUp() {
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("signupEmail").value;
+      const password = document.getElementById("signupPassword").value;
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(cred => cred.user.updateProfile({ displayName: name }))
+        .then(() => alert("Signed up"))
+        .catch(e => alert(e.message));
+    }
+
+    function logout() { auth.signOut(); }
+
+    auth.onAuthStateChanged(user => {
+      document.getElementById("logoutBtn").style.display = user ? "inline-block" : "none";
+      document.getElementById("newPost").style.display = user ? "block" : "none";
+      document.getElementById("liveUpload").style.display = user ? "block" : "none";
+    });
+
+    function submitPost() {
+      const title = postTitle.value;
+      const content = postContent.value;
+      const imageUrl = postImageUrl.value;
+      const videoUrl = postVideoUrl.value;
+      const user = auth.currentUser;
+      if (!user) return;
+      db.collection("posts").add({
+        title, content, imageUrl, videoUrl,
+        name: user.displayName || user.email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    function loadPosts() {
+      db.collection("posts").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+        postList.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          postList.innerHTML += `<div class='post'>
+            <h3>${d.title}</h3>
+            <p>${d.content}</p>
+            ${d.imageUrl ? `<img src='${d.imageUrl}'>` : ''}
+            ${d.videoUrl ? `<video src='${d.videoUrl}' controls></video>` : ''}
+          </div>`;
+        });
+      });
+    }
+
+    function loadLives() {
+      db.collection("live").where("active", "==", true).orderBy("createdAt", "desc").onSnapshot(snapshot => {
+        liveList.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          liveList.innerHTML += `<div class='live'>
+            <h3>${d.name}</h3>
+            <p>Owner: ${d.owner}</p>
+            <a href='${d.streamURL}' target='_blank'>Watch</a>
+          </div>`;
+        });
+      });
+    }
+
+    function generateStream() {
+      const name = document.getElementById("liveName").value;
+      const user = auth.currentUser;
+      const key = Math.random().toString(36).substring(2, 15);
+      const streamURL = `http://www.upanna.com/pagebook/stream/${user.uid}`;
+      const rtmp = `rtmp://www.upanna.com/live/${key}`;
+      db.collection("live").doc(user.uid).set({
+        name, streamURL, rtmpKey: key, rtmpURL: rtmp,
+        owner: user.displayName || user.email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        active: true
+      });
+      document.getElementById("streamInfo").innerHTML = `
+        <p><strong>Watch:</strong> ${streamURL}</p>
+        <p><strong>Stream Key:</strong> ${key}</p>
+        <p><strong>RTMP:</strong> ${rtmp}</p>`;
+    }
+
+    function loadPhotos() {
+      db.collection("posts").where("imageUrl", "!=", "").onSnapshot(snapshot => {
+        photoList.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          photoList.innerHTML += `<div class='photo'><img src='${d.imageUrl}'></div>`;
+        });
+      });
+    }
+
+    function loadVideos() {
+      db.collection("posts").where("videoUrl", "!=", "").onSnapshot(snapshot => {
+        videoList.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          videoList.innerHTML += `<div class='video'><video src='${d.videoUrl}' controls></video></div>`;
+        });
+      });
+    }
+
+    function sendMessage() {
+      const user = auth.currentUser;
+      const content = messageInput.value;
+      if (!user || !content) return;
+      db.collection("messages").add({
+        name: user.displayName || user.email,
+        content,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      messageInput.value = "";
+    }
+
+    function loadMessages() {
+      db.collection("messages").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+        messageList.innerHTML = "";
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          messageList.innerHTML += `<p><strong>${d.name}:</strong> ${d.content}</p>`;
+        });
+      });
+    }
+
+    window.onload = () => {
+      showSection('posts');
+      loadPosts();
+      loadLives();
+      loadPhotos();
+      loadVideos();
+      loadMessages();
     }
   </script>
 </body>
