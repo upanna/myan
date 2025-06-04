@@ -20,7 +20,9 @@
       text-align: center;
       position: relative;
     }
-h5{text-align: right;}
+    h5 {
+      text-align: right;
+    }
     .chatbox-container {
       margin-top: 20px;
       display: flex;
@@ -106,8 +108,9 @@ h5{text-align: right;}
       </div>
     </div>
     <div id="chatResponse"></div>
-<h5>Created by U Pannasiri<br/>DBU(Bago)</h5>
+    <h5>Created by U Pannasiri<br/>DBU(Bago)</h5>
   </header>
+
   <div class="container">
     <div class="card">
       <h3>Elicit.org</h3>
@@ -144,8 +147,8 @@ h5{text-align: right;}
       <p>Data cleaning tool for refining and organizing messy research datasets.</p>
       <a href="https://openrefine.org" target="_blank">Visit OpenRefine</a>
     </div>
-<div class="card">
- <h3>Connectedpapers</h3>
+    <div class="card">
+      <h3>Connectedpapers</h3>
       <p>Data researching tool for refining and organizing messy research datasets.</p>
       <a href="https://www.connectedpapers.com" target="_blank">Visit Connectedpapers</a>
     </div>
@@ -153,18 +156,19 @@ h5{text-align: right;}
       <iframe src="https://digitalpalireader.online/_dprhtml/index.html"></iframe>
     </div>
   </div>
+
   <script>
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAVZ6w99iS7OtryUlaJXovJhQWU-yZ2iKU",
-  authDomain: "login-ca153.firebaseapp.com",
-  databaseURL: "https://login-ca153.firebaseio.com",
-  projectId: "login-ca153",
-  storageBucket: "login-ca153.appspot.com",
-  messagingSenderId: "649333708701",
-  appId: "1:649333708701:web:e6b081e65c3cc546b34174",
-  measurementId: "G-SJ62R2SJDG"
-};
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyAVZ6w99iS7OtryUlaJXovJhQWU-yZ2iKU",
+      authDomain: "login-ca153.firebaseapp.com",
+      databaseURL: "https://login-ca153.firebaseio.com",
+      projectId: "login-ca153",
+      storageBucket: "login-ca153.appspot.com",
+      messagingSenderId: "649333708701",
+      appId: "1:649333708701:web:e6b081e65c3cc546b34174",
+      measurementId: "G-SJ62R2SJDG"
+    };
 
     firebase.initializeApp(firebaseConfig);
     const functions = firebase.functions();
@@ -172,17 +176,25 @@ const firebaseConfig = {
     function sendMessage() {
       const input = document.getElementById('chatInput');
       const message = input.value.trim();
-      if (!message) return;
-      input.value = '';
       const responseBox = document.getElementById('chatResponse');
+      responseBox.style.color = "#ffffff";
+
+      if (!message) return;
+
+      input.value = '';
       responseBox.textContent = 'Thinking...';
+
       const askAI = functions.httpsCallable('askAI');
-      askAI({ prompt: message }).then(result => {
-        responseBox.textContent = "AI says: " + result.data.reply;
-      }).catch(error => {
-        console.error(error);
-        responseBox.textContent = "There was an error connecting to AI.";
-      });
+      askAI({ prompt: message })
+        .then(result => {
+          responseBox.style.color = "#ffffff";
+          responseBox.textContent = "AI says: " + result.data.reply;
+        })
+        .catch(error => {
+          console.error("AI connection error:", error);
+          responseBox.style.color = "#ffcc00";
+          responseBox.textContent = "⚠️ Unable to connect to AI service. Please check your internet connection or try again later.";
+        });
     }
   </script>
 </body>
